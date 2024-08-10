@@ -23,6 +23,3 @@ export class RingBuffer {
         return results;
     }
 }
-
-module.exports = { RingBuffer };
-
