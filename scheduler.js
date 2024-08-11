@@ -18,15 +18,6 @@ const combinations = (arr, k) => {
     return result;
 };
 
-// Conference 1
-const XENU = ['Harsha', 'Pepoy', 'Johan'];
-const SHIVA = ['Jack', 'Duhaime', 'Peter'];
-
-// Conference 2
-const YAHWEH = ['Pomeroy', 'Holbrook', 'Ali'];
-const ALLAH = ['Varano', 'Nezich', 'Barton'];
-const TEAMS = [...YAHWEH, ...XENU, ...SHIVA, ...ALLAH];
-
 export class Scheduler {
     constructor(divisions) {
         this.divisions = divisions
