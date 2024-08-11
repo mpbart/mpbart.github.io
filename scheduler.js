@@ -1,164 +1,125 @@
-import { RingBuffer } from "./ring_buffer.js";
+function zip(...arrays) {
+  // Find the length of the shortest array
+  const minLength = Math.min(...arrays.map(arr => arr.length));
 
-const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-const combinations = (arr, k) => {
-    const result = [];
-    const comb = (start, chosen) => {
-        if (chosen.length === k) {
-            result.push(chosen.slice());
-            return;
+  // Create an array of arrays where each sub-array contains elements at corresponding positions
+  return Array.from({ length: minLength }, (_, i) => {
+    return arrays.map(arr => arr[i]);
+  });
+}
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// Create a schedule where each team plays 14 games and does not play the same team back to back
+function constructValidSchedule(schedule, pairs) {
+  let count = 0;
+  while (Object.values(schedule).some(games => games.includes(null))) {
+    Object.keys(schedule).forEach(team => {
+      schedule[team] = Array(14).fill(null);
+    });
+
+    shuffle(pairs).forEach(pair => {
+      const [team1, team2] = pair;
+      for (let i = 0; i < 14; i++) {
+        if (schedule[team1][i] === null && schedule[team2][i] === null && schedule[team1][Math.max(i - 1, 0)] !== team2) {
+          schedule[team1][i] = team2;
+          schedule[team2][i] = team1;
+          return;
         }
-        for (let i = start; i < arr.length; i++) {
-            chosen.push(arr[i]);
-            comb(i + 1, chosen);
-            chosen.pop();
-        }
-    };
-    comb(0, []);
-    return result;
-};
+      }
+    });
 
-export class Scheduler {
-    constructor(divisions) {
-        this.divisions = divisions
-        console.log(divisions);
-        this.teams = divisions.flat();
-        this.numTeams = this.teams.length;
-        this.schedule = {};
-        this.numMatchupWeeks = 14;
-        this.teamsPerDivision = 3;
-        this.conferenceMatchups = 1;
-        this.teams.forEach(team => {
-          this.schedule[team] = this.blankSchedule();
-        });
-        this.divisionMap = this.createDivisionMap();
-        this.conferenceMap = this.createConferenceMap();
+    count += 1;
+  }
+  console.log(`Took ${count} iterations to generate a valid schedule`);
+  return schedule;
+}
+
+function validateSchedule(schedule) {
+  Object.entries(schedule).forEach(([team, games]) => {
+    games.slice(0, -1).forEach((game, i) => {
+      if (games[i] === games[i + 1]) {
+        console.log(`Team plays back to back games! ${team} plays ${games[i + 1]} on game ${i + 1} and ${games[i]} on game ${i}`);
+      }
+    });
+  });
+}
+
+export function createSchedule(divisions) {
+  const schedule = {};
+  const teams = divisions.flat();
+
+  teams.forEach(t => {
+    schedule[t] = Array(14).fill(null);
+  });
+
+  let pairs = combinations_rb(teams, 2);
+  pairs = pairs.concat(divisions).flatMap(div => combinations_rb(div, 2));
+  pairs = pairs.concat(zip(shuffle(divisions[0]), shuffle(divisions[1])));
+  pairs = pairs.concat(zip(shuffle(divisions[2]), shuffle(divisions[3])));
+
+  const finalSchedule = constructValidSchedule(schedule, pairs);
+  validateSchedule(finalSchedule);
+
+  return finalSchedule;
+}
+
+function combinations_rb(array, r) {
+  const result = [];
+  function combine(arr, data, start, end, index) {
+    if (index === r) {
+      result.push([...data]);
+      return;
     }
-
-    blankSchedule() {
-      return Array.from({ length: this.numMatchupWeeks }, () => null);
+    for (let i = start; i <= end && end - i + 1 >= r - index; i++) {
+      data[index] = arr[i];
+      combine(arr, data, i + 1, end, index + 1);
     }
+  }
+  combine(array, Array(r), 0, array.length - 1, 0);
+  return result;
+}
 
-    createDivisionMap() {
-        const map = {};
-        this.divisions.forEach((teams, index) => {
-          teams.forEach(team => {
-            map[team] = `Division ${index + 1}`;
-          });
-        });
-        return map;
-    }
+export function generateOutput(numWeeks, schedule) {
+  const table = document.createElement('table');
+    table.className = 'schedule-table';
 
-    generateSchedule() {
-        this.generateAllMatchups(0);
-        this.generateDivisionMatchups(11);
-        this.generateConferenceMatchups(11);
-        console.log(this.schedule);
-        this.shuffleWeeks();
-        return this.schedule;
-    }
+    // Create the header row
+    const headerRow = document.createElement('tr');
+    let headerCell = document.createElement('th');
+    headerCell.innerText = 'Team';
+    headerRow.appendChild(headerCell);
 
-    createConferenceMap() {
-      return {
-        'Division 1': 'Division 2',
-        'Division 2': 'Division 1',
-        'Division 3': 'Division 4',
-        'Division 4': 'Division 3'
-      };
-    }
-
-    generateAllMatchups(startWeek) {
-        const c = new RingBuffer(Object.keys(this.schedule));
-        let week = startWeek;
-        for (let i = 0; i < this.numTeams - 1; i++) {
-            c.getOpposites().forEach(([homeTeam, awayTeam]) => {
-                this.schedule[homeTeam][week] = awayTeam;
-                this.schedule[awayTeam][week] = homeTeam;
-            });
-            c.shift();
-            week += 1;
-        }
-    }
-
-    generateDivisionMatchups(startWeek) {
-        this.divisions.forEach(teams => {
-            combinations(teams, 2).forEach(matchup => {
-                for (let i = startWeek; i < startWeek + 3; i++) {
-                    if (this.schedule[matchup[0]][i] === null && this.schedule[matchup[1]][i] === null) {
-                        this.schedule[matchup[0]][i] = matchup[1];
-                        this.schedule[matchup[1]][i] = matchup[0];
-                        break;
-                    }
-                }
-            });
-        });
-    }
-
-    generateConferenceMatchups(startWeek) {
-        const matchups = [];
-        for (let week = startWeek; week < startWeek + 3; week++) {
-            const candidates = {};
-            Object.keys(this.schedule).forEach(team => {
-                if (this.schedule[team][week] === null) {
-                    candidates[this.divisionMap[team]] = team;
-                }
-            });
-            matchups.push([candidates['Division 1'], candidates['Division 2'], week]);
-            matchups.push([candidates['Division 3'], candidates['Division 4'], week]);
-        }
-
-        console.log(matchups);
-        matchups.forEach(([team1, team2, week]) => {
-            this.schedule[team1][week] = team2;
-            this.schedule[team2][week] = team1;
-        });
-    }
-
-    shuffleWeeks() {
-        const weeks = Array.from({ length: this.numMatchupWeeks }, (_, i) => i);
-        weeks.sort(() => Math.random() - 0.5);
-        weeks.forEach((week, idx) => {
-            Object.keys(this.schedule).forEach(team => {
-                const temp = this.schedule[team][idx];
-                this.schedule[team][idx] = this.schedule[team][week];
-                this.schedule[team][week] = temp;
-            });
-        });
-    }
-
-    generateOutput(numWeeks) {
-      const table = document.createElement('table');
-        table.className = 'schedule-table';
-
-        // Create the header row
-        const headerRow = document.createElement('tr');
-        let headerCell = document.createElement('th');
-        headerCell.innerText = 'Team';
+    for (let week = 0; week < numWeeks; week++) {
+        headerCell = document.createElement('th');
+        headerCell.innerText = `Week ${week + 1}`;
         headerRow.appendChild(headerCell);
+    }
+    table.appendChild(headerRow);
+
+    // Create the rows for each team
+    Object.keys(schedule).sort().forEach(team => {
+        const row = document.createElement('tr');
+        const teamCell = document.createElement('td');
+        const boldText = document.createElement('b');
+        boldText.textContent = team;
+        teamCell.appendChild(boldText);
+        row.appendChild(teamCell);
 
         for (let week = 0; week < numWeeks; week++) {
-            headerCell = document.createElement('th');
-            headerCell.innerText = `Week ${week + 1}`;
-            headerRow.appendChild(headerCell);
+            const matchup = schedule[team][week];
+            const cell = document.createElement('td');
+            cell.innerText = matchup || '';
+            row.appendChild(cell);
         }
-        table.appendChild(headerRow);
+        table.appendChild(row);
+    });
 
-        // Create the rows for each team
-        Object.keys(this.schedule).sort().forEach(team => {
-            const row = document.createElement('tr');
-            const teamCell = document.createElement('td');
-            teamCell.innerText = team;
-            row.appendChild(teamCell);
-
-            for (let week = 0; week < numWeeks; week++) {
-                const matchup = this.schedule[team][week];
-                const cell = document.createElement('td');
-                cell.innerText = matchup || '';
-                row.appendChild(cell);
-            }
-            table.appendChild(row);
-        });
-
-        return table;
-    }
+    return table;
 }

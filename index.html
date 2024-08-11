@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <title>Schedule Generator</title>
     <style>
         .schedule-table {
@@ -16,6 +17,9 @@
         }
         .schedule-table th {
             background-color: #f2f2f2;
+        }
+        .schedule-table tr td:first-child {
+          background-color: #f2f2f2;
         }
         .divisions-wrapper {
             display: flex;
@@ -55,7 +59,7 @@
     <div id="schedule-container"></div>
 
     <script type="module">
-        import { Scheduler } from './scheduler.js';
+        import { createSchedule, generateOutput } from './scheduler.js';
 
         document.addEventListener('DOMContentLoaded', () => {
             const divisionsContainer = document.getElementById('divisions-container');
@@ -93,11 +97,8 @@
                 }
 
                 if (divisions.every(div => div.length === 3)) {
-                    const scheduler = new Scheduler(divisions);
-                    scheduler.generateSchedule();
-
                     const numWeeks = 14;
-                    const scheduleTable = scheduler.generateOutput(numWeeks);
+                    const scheduleTable = generateOutput(numWeeks, createSchedule(divisions));
 
                     const container = document.getElementById('schedule-container');
                     container.innerHTML = '';  // Clear previous schedule
