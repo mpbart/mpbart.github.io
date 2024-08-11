@@ -1,14 +1,113 @@
 <!DOCTYPE html>
-<html>
-  <head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Schedule Generator</title>
+    <style>
+        .schedule-table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .schedule-table th, .schedule-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .schedule-table th {
+            background-color: #f2f2f2;
+        }
+        .divisions-wrapper {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .division-input {
+            flex: 1;
+            margin-right: 10px;
+        }
+        .division-input:last-child {
+            margin-right: 0;
+        }
+        .division-input label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 10px;
+        }
+        .division-input input {
+            display: block;
+            margin-bottom: 10px;
+            padding: 5px;
+            width: calc(100% - 10px);
+        }
+    </style>
+</head>
+<body>
+    <h1>Enter Teams for Each Division</h1>
+
+    <div class="divisions-wrapper" id="divisions-container">
+        <!-- Division inputs will be added here -->
+    </div>
+
+    <button id="generate-schedule">Generate Schedule</button>
+
+    <h2>Generated Schedule</h2>
+    <div id="schedule-container"></div>
+
     <script type="module">
-      import { Scheduler } from "./scheduler.js";
-      const scheduler = new Scheduler();
-      scheduler.generateScheduler();
-      scheduler.display(14);
+        import { Scheduler } from './scheduler.js';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const divisionsContainer = document.getElementById('divisions-container');
+
+            // Generate input fields for 4 divisions, each with 4 teams
+            for (let i = 1; i <= 4; i++) {
+                const div = document.createElement('div');
+                div.className = 'division-input';
+                div.innerHTML = `<label>Division ${i}:</label>`;
+
+                for (let j = 1; j <= 3; j++) {
+                    const teamInput = document.createElement('input');
+                    teamInput.type = 'text';
+                    teamInput.placeholder = `Enter team ${j} name`;
+                    teamInput.id = `division-${i}-team-${j}`;
+                    div.appendChild(teamInput);
+                }
+
+                divisionsContainer.appendChild(div);
+            }
+
+            document.getElementById('generate-schedule').addEventListener('click', () => {
+                const divisions = [];
+
+                // Collect team names for each division
+                for (let i = 1; i <= 4; i++) {
+                    const teams = [];
+                    for (let j = 1; j <= 3; j++) {
+                        const input = document.getElementById(`division-${i}-team-${j}`);
+                        if (input && input.value.trim()) {
+                            teams.push(input.value.trim());
+                        }
+                    }
+                    divisions.push(teams);
+                }
+
+                if (divisions.every(div => div.length === 3)) {
+                    const scheduler = new Scheduler(divisions);
+                    scheduler.generateSchedule();
+
+                    const numWeeks = 14;
+                    const scheduleTable = scheduler.generateOutput(numWeeks);
+
+                    const container = document.getElementById('schedule-container');
+                    container.innerHTML = '';  // Clear previous schedule
+                    container.appendChild(scheduleTable);
+                } else {
+                    alert("Each division must have exactly 4 teams.");
+                }
+            });
+        });
     </script>
-  </head>
-  <body>
-    Hello World
-  </body>
+</body>
 </html>
+

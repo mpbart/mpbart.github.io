@@ -28,57 +28,61 @@ const ALLAH = ['Varano', 'Nezich', 'Barton'];
 const TEAMS = [...YAHWEH, ...XENU, ...SHIVA, ...ALLAH];
 
 export class Scheduler {
-    constructor() {
-        this.numTeams = TEAMS.length;
+    constructor(divisions) {
+        this.divisions = divisions
+        console.log(divisions);
+        this.teams = divisions.flat();
+        this.numTeams = this.teams.length;
+        this.schedule = {};
         this.numMatchupWeeks = 14;
         this.teamsPerDivision = 3;
         this.conferenceMatchups = 1;
-        this.conferenceMatchupWeek = randomInt(1, this.numMatchupWeeks - 2);
-        this.teams = {};
-        TEAMS.forEach(team => {
-            this.teams[team] = this.blankSchedule();
+        this.teams.forEach(team => {
+          this.schedule[team] = this.blankSchedule();
         });
         this.divisionMap = this.createDivisionMap();
-        this.conferenceMap = { 'YAHWEH': 'ALLAH', 'ALLAH': 'YAHWEH', 'XENU': 'SHIVA', 'SHIVA': 'XENU' };
-        
-        XENU.sort(() => Math.random() - 0.5);
-        SHIVA.sort(() => Math.random() - 0.5);
-        YAHWEH.sort(() => Math.random() - 0.5);
-        ALLAH.sort(() => Math.random() - 0.5);
+        this.conferenceMap = this.createConferenceMap();
     }
 
     blankSchedule() {
-        const schedule = {};
-        for (let i = 0; i < this.numMatchupWeeks; i++) {
-            schedule[i] = null;
-        }
-        return schedule;
+      return Array.from({ length: this.numMatchupWeeks }, () => null);
     }
 
     createDivisionMap() {
-        const d = {};
-        XENU.forEach(team => d[team] = 'XENU');
-        SHIVA.forEach(team => d[team] = 'SHIVA');
-        YAHWEH.forEach(team => d[team] = 'YAHWEH');
-        ALLAH.forEach(team => d[team] = 'ALLAH');
-        return d;
+        const map = {};
+        this.divisions.forEach((teams, index) => {
+          teams.forEach(team => {
+            map[team] = `Division ${index + 1}`;
+          });
+        });
+        return map;
     }
 
     generateSchedule() {
         this.generateAllMatchups(0);
         this.generateDivisionMatchups(11);
         this.generateConferenceMatchups(11);
+        console.log(this.schedule);
         this.shuffleWeeks();
-        return this.teams;
+        return this.schedule;
+    }
+
+    createConferenceMap() {
+      return {
+        'Division 1': 'Division 2',
+        'Division 2': 'Division 1',
+        'Division 3': 'Division 4',
+        'Division 4': 'Division 3'
+      };
     }
 
     generateAllMatchups(startWeek) {
-        const c = new RingBuffer(Object.keys(this.teams));
+        const c = new RingBuffer(Object.keys(this.schedule));
         let week = startWeek;
         for (let i = 0; i < this.numTeams - 1; i++) {
             c.getOpposites().forEach(([homeTeam, awayTeam]) => {
-                this.teams[homeTeam][week] = awayTeam;
-                this.teams[awayTeam][week] = homeTeam;
+                this.schedule[homeTeam][week] = awayTeam;
+                this.schedule[awayTeam][week] = homeTeam;
             });
             c.shift();
             week += 1;
@@ -86,12 +90,12 @@ export class Scheduler {
     }
 
     generateDivisionMatchups(startWeek) {
-        [YAHWEH, ALLAH, SHIVA, XENU].forEach(teams => {
+        this.divisions.forEach(teams => {
             combinations(teams, 2).forEach(matchup => {
                 for (let i = startWeek; i < startWeek + 3; i++) {
-                    if (this.teams[matchup[0]][i] === null && this.teams[matchup[1]][i] === null) {
-                        this.teams[matchup[0]][i] = matchup[1];
-                        this.teams[matchup[1]][i] = matchup[0];
+                    if (this.schedule[matchup[0]][i] === null && this.schedule[matchup[1]][i] === null) {
+                        this.schedule[matchup[0]][i] = matchup[1];
+                        this.schedule[matchup[1]][i] = matchup[0];
                         break;
                     }
                 }
@@ -103,18 +107,19 @@ export class Scheduler {
         const matchups = [];
         for (let week = startWeek; week < startWeek + 3; week++) {
             const candidates = {};
-            Object.keys(this.teams).forEach(team => {
-                if (this.teams[team][week] === null) {
+            Object.keys(this.schedule).forEach(team => {
+                if (this.schedule[team][week] === null) {
                     candidates[this.divisionMap[team]] = team;
                 }
             });
-            matchups.push([candidates['YAHWEH'], candidates['ALLAH'], week]);
-            matchups.push([candidates['XENU'], candidates['SHIVA'], week]);
+            matchups.push([candidates['Division 1'], candidates['Division 2'], week]);
+            matchups.push([candidates['Division 3'], candidates['Division 4'], week]);
         }
 
+        console.log(matchups);
         matchups.forEach(([team1, team2, week]) => {
-            this.teams[team1][week] = team2;
-            this.teams[team2][week] = team1;
+            this.schedule[team1][week] = team2;
+            this.schedule[team2][week] = team1;
         });
     }
 
@@ -122,27 +127,47 @@ export class Scheduler {
         const weeks = Array.from({ length: this.numMatchupWeeks }, (_, i) => i);
         weeks.sort(() => Math.random() - 0.5);
         weeks.forEach((week, idx) => {
-            Object.keys(this.teams).forEach(team => {
-                const temp = this.teams[team][idx];
-                this.teams[team][idx] = this.teams[team][week];
-                this.teams[team][week] = temp;
+            Object.keys(this.schedule).forEach(team => {
+                const temp = this.schedule[team][idx];
+                this.schedule[team][idx] = this.schedule[team][week];
+                this.schedule[team][week] = temp;
             });
         });
     }
 
-    display(numWeeks) {
-        console.log("Team");
+    generateOutput(numWeeks) {
+      const table = document.createElement('table');
+        table.className = 'schedule-table';
+
+        // Create the header row
+        const headerRow = document.createElement('tr');
+        let headerCell = document.createElement('th');
+        headerCell.innerText = 'Team';
+        headerRow.appendChild(headerCell);
+
         for (let week = 0; week < numWeeks; week++) {
-            process.stdout.write(`   ${week + 1}`);
-            if (week === numWeeks - 1) console.log("");
+            headerCell = document.createElement('th');
+            headerCell.innerText = `Week ${week + 1}`;
+            headerRow.appendChild(headerCell);
         }
-        Object.keys(this.teams).sort().forEach(team => {
-            process.stdout.write(`  ${team}`);
+        table.appendChild(headerRow);
+
+        // Create the rows for each team
+        Object.keys(this.schedule).sort().forEach(team => {
+            const row = document.createElement('tr');
+            const teamCell = document.createElement('td');
+            teamCell.innerText = team;
+            row.appendChild(teamCell);
+
             for (let week = 0; week < numWeeks; week++) {
-                const matchup = this.teams[team][week];
-                process.stdout.write(`   ${matchup}`);
-                if (week === numWeeks - 1) console.log("");
+                const matchup = this.schedule[team][week];
+                const cell = document.createElement('td');
+                cell.innerText = matchup || '';
+                row.appendChild(cell);
             }
+            table.appendChild(row);
         });
+
+        return table;
     }
 }
