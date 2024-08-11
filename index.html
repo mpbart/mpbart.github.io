@@ -51,7 +51,7 @@
 
     <button id="generate-schedule">Generate Schedule</button>
 
-    <h2>Generated Schedule</h2>
+    <h2 id='schedule-title' hidden=true>Generated Schedule</h2>
     <div id="schedule-container"></div>
 
     <script type="module">
@@ -101,6 +101,7 @@
 
                     const container = document.getElementById('schedule-container');
                     container.innerHTML = '';  // Clear previous schedule
+                    document.getElementById('schedule-title').removeAttribute('hidden');
                     container.appendChild(scheduleTable);
                 } else {
                     alert("Each division must have exactly 3 teams.");
